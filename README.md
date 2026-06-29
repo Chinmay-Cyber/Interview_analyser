@@ -1,179 +1,94 @@
-# 🎯 AI Interview Analyzer
+# 🎥 Interview Analyzer
 
-> **Practice your interview. Build your confidence. Get real feedback.**
+An offline, end-to-end interview practice tool that runs entirely inside a Jupyter notebook. Upload a video of yourself answering an interview question, and it analyzes your **speech, content, voice, eye contact, and facial expressions** to generate a scored PDF report — with honest caveats about what each metric can and can't actually tell you.
 
-A Jupyter Notebook tool designed for students who want to sharpen their interview skills. Upload a video of yourself answering interview questions and receive a detailed, AI-powered analysis covering how you speak, how you look, and what you say — all in a downloadable PDF report.
+## What it does
 
----
+Upload a short video and the pipeline runs through seven stages:
 
-## 🌟 What It Does
+1. **Audio extraction** — pulls a clean WAV track from the video (gracefully continues with visual-only analysis if there's no audio)
+2. **Frame sampling** — samples video frames at ~0.5 fps (capped at 240 frames) for facial/gaze analysis
+3. **Transcription** — uses `faster-whisper` to transcribe speech with word-level timestamps and computes words-per-minute
+4. **Gaze estimation** — uses MediaPipe Face Landmarker (iris vs. eye-corner offset) to estimate camera engagement
+5. **Facial expression analysis** — uses DeepFace to classify expressions per frame, with a confidence threshold below which readings are marked `uncertain_reading` rather than guessed
+6. **Voice & content analysis** — extracts acoustic features (energy, pitch variability, pause quality, etc.), detects filler words, scores technical vocabulary, and runs sentiment analysis on the transcript
+7. **Scoring & report generation** — combines everything into a weighted overall score and renders a multi-section PDF report
 
-Most students practice interviews by guessing — *"Did I say 'um' too much? Was I too fast? Did I look confident?"*
+The whole thing runs through a simple `ipywidgets` UI inside the notebook — upload a video, click **Analyze Video**, and a results card plus a downloadable PDF report are produced.
 
-This tool answers those questions objectively. Record yourself doing a mock interview, upload the video, and get scored across five key dimensions:
+## Scored dimensions
 
-| Dimension | What's Measured |
+| Metric | What feeds into it |
 |---|---|
-| 🗣️ **Communication** | Speaking pace (WPM), filler word usage |
-| 💪 **Confidence** | Voice energy, consistency, pitch, pausing |
-| 👁️ **Eye Contact** | Camera engagement throughout the session |
-| 🧠 **Content Quality** | Technical vocabulary, answer structure, clarity |
-| 😌 **Emotion Stability** | Facial emotion distribution and composure |
+| **Communication** | Speaking pace (WPM vs. ideal ~135 WPM) + filler word ratio |
+| **Confidence** | Vocal presence score, eye contact score, and positive-expression ratio |
+| **Content Quality** | Sentence clarity, structure markers, technical vocabulary, relevance |
+| **Eye Contact** | % of sampled frames where gaze is aligned with the camera |
+| **Emotion Stability** | Ratio of composed/positive expressions to anxious/negative ones across the session |
 
----
+These combine into a single **Overall Score (0–100)** with a verdict (*Excellent / Good / Average / Needs Improvement*), plus a list of strengths and concrete areas for improvement.
 
-## 📸 Output: Professional PDF Report
+## Why it's designed this way
 
-After analysis, a PDF is automatically generated with:
-- Overall interview score (out of 100) with a verdict (Excellent / Good / Average / Needs Improvement)
-- Section-by-section score breakdown
-- Speaking pace classification (Too Slow / Ideal / Too Fast)
-- Filler word counts and severity rating
-- Eye contact percentage and assessment
-- Emotion distribution chart (happy, neutral, fear, etc.)
-- Detected technical keywords from your answer
-- Personalized **strengths** and **areas for improvement**
-- First 1,000 characters of your transcript
+A lot of "AI interview scorer" tools overstate what facial expression or voice analysis can actually detect. This project tries not to:
 
----
+- Every metric ships with an explicit caveat in the report (e.g. *"these are facial expression classifications, not true emotional states"*, *"voice metrics are acoustic proxies, not personality traits"*).
+- Expression and emotion readings below a confidence threshold are labeled `uncertain_reading` instead of being forced into a category.
+- Filler word detection includes an honest false-positive/false-negative risk note (fast speech, accents, and non-English words can throw it off).
+- Technical keyword scoring is **density-capped** so the score rewards depth over keyword-stuffing.
 
-## 🚀 Getting Started
+## Output
 
-### Prerequisites
+- An in-notebook results summary (overall score, sub-scores, verdict)
+- A downloadable **PDF report** with 12 sections: transcript stats, speaking pace, filler analysis, eye contact, expression breakdown, voice features, content quality, sentiment, strengths, improvements, and a transcript excerpt
+- A console "honest self-assessment summary" printed for quick reference
 
-- Python 3.8+
-- Jupyter Notebook or JupyterLab
-- A webcam recording of your mock interview (`.mp4`, `.avi`, `.mov`, or `.mkv`)
+## Tech stack
+
+| Component | Library |
+|---|---|
+| Transcription | [`faster-whisper`](https://github.com/SYSTRAN/faster-whisper) (`tiny` model, CPU/int8) |
+| Gaze tracking | [`mediapipe`](https://github.com/google/mediapipe) Face Landmarker |
+| Facial expression | [`deepface`](https://github.com/serengil/deepface) |
+| Sentiment analysis | 🤗 `transformers` (`distilbert-base-uncased-finetuned-sst-2-english`) |
+| Audio/video processing | `moviepy`, `opencv-python` |
+| PDF generation | `reportlab` |
+| Notebook UI | `ipywidgets` |
+
+Everything runs **locally and offline** (after the one-time MediaPipe model download) — no API keys, no cloud calls.
+
+## Getting started
+
+### Requirements
+
+- Python 3.10+ (developed on 3.13)
+- ~16 GB RAM recommended (for smoother DeepFace/Whisper performance — it will still run on less, just slower)
+- `ffmpeg` installed and on your PATH
 
 ### Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-username/ai-interview-analyzer.git
-cd ai-interview-analyzer
-
-# Install dependencies
-pip install -r requirements.txt
+pip install faster-whisper mediapipe deepface opencv-python moviepy \
+            transformers torch reportlab ipywidgets tqdm numpy
 ```
 
-### Required Libraries
+> The MediaPipe Face Landmarker model (`face_landmarker.task`) is downloaded automatically on first run.
 
-```bash
-pip install faster-whisper deepface opencv-python moviepy librosa \
-            transformers ipywidgets tqdm reportlab
-```
+### Usage
 
-> **Note on model size:** The notebook uses `faster-whisper` with the `tiny` model by default, which runs on CPU. If you have 16GB+ RAM and a GPU, you can switch to `medium` for better transcription accuracy (see Section 7 of the notebook).
+1. Open `Interview_Analyzer.ipynb` in Jupyter Lab/Notebook (or VS Code).
+2. Run all cells in order.
+3. Use the upload widget to select a video (`.mp4`, `.avi`, `.mov`, `.mkv`, `.webm` — 5 minutes or less recommended).
+4. Click **▶ Analyze Video**.
+5. Review the in-notebook results card and download the generated PDF report.
 
----
+## Limitations
 
-## 📖 How to Use
+- Designed for single-face, front-facing webcam-style videos — not group calls or low-light/occluded footage.
+- Facial expression and voice "confidence" scores are proxies based on signal/visual patterns, not validated psychological measures.
+- The `tiny` Whisper model is used for speed; swapping in `base` or `medium` will improve transcription accuracy at the cost of runtime (see Cell 7).
+- Filler word detection is dictionary/regex-based, not context-aware — it can both over- and under-count depending on speaking style.
 
-1. **Open the notebook** in Jupyter:
-   ```bash
-   jupyter notebook code.ipynb
-   ```
+## License
 
-2. **Run all cells** from top to bottom (`Kernel → Restart & Run All`)
-
-3. **Upload your video** using the file upload widget that appears
-
-4. **Click "▶ Analyze Video"** and wait while the AI processes your recording
-
-5. **Download your PDF report** from the link that appears when analysis completes
-
----
-
-## 🔬 How It Works (Under the Hood)
-
-The notebook runs a multi-stage analysis pipeline:
-
-```
-Video File
-   │
-   ├──► Audio Extraction (moviepy)
-   │         │
-   │         ├──► Transcription (faster-whisper)  → Words per minute, transcript
-   │         ├──► Filler Word Detection            → "um", "uh", "like", etc.
-   │         ├──► Sentiment Analysis (DistilBERT)  → Positive/Negative tone
-   │         └──► Voice Analysis (librosa)         → Energy, pitch, clarity, pauses
-   │
-   └──► Frame Sampling (OpenCV, 0.5 fps)
-             │
-             ├──► Facial Emotion Analysis (DeepFace) → Emotion per frame
-             └──► Eye Contact Detection (Haar Cascades) → Camera engagement %
-                       │
-                       └──► Score Computation → PDF Report (reportlab)
-```
-
----
-
-## 📊 Scoring Breakdown
-
-| Score | Weight | Criteria |
-|---|---|---|
-| Communication | 25% | Speaking pace (ideal: 110–160 WPM) + filler word ratio |
-| Confidence | 25% | Voice features + eye contact + positive emotions |
-| Content Quality | 30% | Technical keywords + answer structure + clarity |
-| Eye Contact | 10% | % of frames with visible eye engagement |
-| Emotion Stability | 10% | Ratio of neutral/positive to negative emotions |
-
----
-
-## 💡 Tips for Best Results
-
-- **Record in good lighting** — the face detection works better with a clear, well-lit face
-- **Look directly at your camera** as if making eye contact with an interviewer
-- **Aim for 2–5 minutes** of speaking — longer videos give more accurate averages
-- **Use technical terms** relevant to your field — the content analyzer detects hundreds of keywords across AI, data engineering, software development, and more
-- **Speak at a natural pace** — the ideal range is 110–160 words per minute
-
----
-
-## 🎓 Who This Is For
-
-This tool is built for:
-- **CS and engineering students** preparing for technical interviews
-- **Anyone doing mock interviews** who wants objective feedback
-- **Self-learners** who want to track improvement over multiple sessions
-
----
-
-## 🛠️ Project Structure
-
-```
-ai-interview-analyzer/
-│
-├── code.ipynb              # Main analysis notebook
-├── README.md               # You are here
-└── Interview_Professional_Report.pdf   # Generated after each analysis run
-```
-
----
-
-## ⚠️ Known Limitations
-
-- Eye contact detection uses Haar Cascades which work best with a **front-facing, well-lit face**
-- Transcription accuracy depends on audio quality — use a decent microphone if possible
-- The `tiny` Whisper model trades accuracy for speed; switch to `medium` for better results on longer videos
-- Analysis may take 2–10 minutes depending on your hardware and video length
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! If you have ideas for new features or improvements:
-1. Fork the repo
-2. Create a new branch (`git checkout -b feature/your-feature`)
-3. Commit your changes
-4. Open a Pull Request
-
----
-
-## 📄 License
-
-This project is open source and available under the [MIT License](LICENSE).
-
----
-
-*Built to help students walk into interviews with confidence. Good luck! 🚀*
+Add your preferred license here (e.g. MIT).
