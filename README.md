@@ -1,6 +1,7 @@
 # 🎥 Interview Analyzer
 
 An offline, end-to-end interview practice tool that runs entirely inside a Jupyter notebook. Upload a video of yourself answering an interview question, and it analyzes your **speech, content, voice, eye contact, and facial expressions** to generate a scored PDF report — with honest caveats about what each metric can and can't actually tell you.
+Mainly for tech people
 
 ## What it does
 
